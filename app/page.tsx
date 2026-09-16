@@ -85,7 +85,7 @@ function downloadCsv(rows: Item[]) {
 }
 
 export default function Home() {
-  const [tab, setTab] = useState<Tab>("products");
+  const [tab, setTab] = useState<Tab>("suppliers");
   const [supplierMode, setSupplierMode] = useState<SupplierMode>("expired");
   const [expandedSupplier, setExpandedSupplier] = useState<string | null>(null);
   const [range, setRange] = useState<RangeFilter>("period");
@@ -197,7 +197,7 @@ export default function Home() {
           <img className="brand-logo" src="/agroconfianca-branca.png" alt="AgroConfiança" />
           <div className="brand-divider" aria-hidden="true" />
           <div className="brand-copy">
-            <strong>Validade em Dia</strong>
+            <strong>Vencimento de Produtos</strong>
             <span>Controle de estoque · CONFIAN-GO</span>
           </div>
         </div>
@@ -208,8 +208,8 @@ export default function Home() {
 
       <section className="hero">
         <div>
-          <p className="eyebrow">AgroConfiança · Gestão de estoque</p>
-          <h1>Validade em Dia</h1>
+          <p className="eyebrow">Controle de Vencimento de Estoque</p>
+          <h1>Vencimento de Produtos</h1>
           <p>Acompanhe lotes vencidos e a vencer nos próximos 120 dias.</p>
         </div>
         <div className="updated"><span className="live-dot" /> Base: 16/09/2026</div>
@@ -237,8 +237,8 @@ export default function Home() {
       </section>
 
       <nav className="tabs" aria-label="Seções do aplicativo">
-        <button className={tab === "products" ? "active" : ""} onClick={() => setTab("products")}>Produtos</button>
         <button className={tab === "suppliers" ? "active" : ""} onClick={() => setTab("suppliers")}>Fornecedores</button>
+        <button className={tab === "products" ? "active" : ""} onClick={() => setTab("products")}>Produtos</button>
       </nav>
 
       <section className="controls">
@@ -380,7 +380,7 @@ export default function Home() {
 
       <footer>
         <img src="/agroconfianca-colorida.png" alt="AgroConfiança" />
-        <strong>Validade em Dia</strong>
+        <strong>Controle de Vencidos e à Vencer</strong>
         <p>Dados importados da planilha de estoque.</p>
       </footer>
 

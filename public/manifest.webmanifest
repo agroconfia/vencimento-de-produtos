@@ -1,6 +1,6 @@
 {
-  "name": "Validade em Dia",
-  "short_name": "Validade",
+  "name": "Vencimento de Produtos",
+  "short_name": "Vencimentos",
   "description": "Controle de produtos vencidos e a vencer no estoque.",
   "start_url": "/",
   "display": "standalone",
