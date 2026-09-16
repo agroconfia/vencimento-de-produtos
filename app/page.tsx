@@ -24,6 +24,7 @@ const items = inventoryData as Item[];
 const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const number = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 2 });
 const date = new Intl.DateTimeFormat("pt-BR");
+const publicPath = (file: string) => `${import.meta.env.BASE_URL || "/"}${file.replace(/^\/+/, "")}`;
 
 function parseDate(value: string) {
   const [year, month, day] = value.split("-").map(Number);
@@ -98,7 +99,7 @@ export default function Home() {
   const [installEvent, setInstallEvent] = useState<Event | null>(null);
 
   useEffect(() => {
-    if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => undefined);
+    if ("serviceWorker" in navigator) navigator.serviceWorker.register(publicPath("sw.js")).catch(() => undefined);
     const onInstall = (event: Event) => {
       event.preventDefault();
       setInstallEvent(event);
@@ -194,7 +195,7 @@ export default function Home() {
     <main className="app-shell">
       <header className="topbar">
         <div className="brand-lockup">
-          <img className="brand-logo" src="/agroconfianca-branca.png" alt="AgroConfiança" />
+          <img className="brand-logo" src={publicPath("agroconfianca-branca.png")} alt="AgroConfiança" />
           <div className="brand-divider" aria-hidden="true" />
           <div className="brand-copy">
             <strong>Vencimento de Produtos</strong>
@@ -379,7 +380,7 @@ export default function Home() {
       )}
 
       <footer>
-        <img src="/agroconfianca-colorida.png" alt="AgroConfiança" />
+        <img src={publicPath("agroconfianca-colorida.png")} alt="AgroConfiança" />
         <strong>Controle de Vencidos e à Vencer</strong>
         <p>Dados importados da planilha de estoque.</p>
       </footer>
