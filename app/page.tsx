@@ -50,6 +50,16 @@ function normalized(value: string) {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 }
 
+function alphabetical(a: Item, b: Item) {
+  return a.product.localeCompare(b.product, "pt-BR", { sensitivity: "base" }) ||
+    a.expiry.localeCompare(b.expiry) ||
+    a.lot.localeCompare(b.lot, "pt-BR", { numeric: true, sensitivity: "base" });
+}
+
+function unitCost(item: Item) {
+  return item.stock ? item.totalCost / item.stock : 0;
+}
+
 function downloadCsv(rows: Item[]) {
   const headings = ["Código", "Produto", "Grupo", "Fornecedor", "Lote", "Validade", "Dias para vencer", "Estoque", "Custo unitário", "Valor em estoque"];
   const lines = rows.map((item) => [
@@ -61,7 +71,7 @@ function downloadCsv(rows: Item[]) {
     date.format(parseDate(item.expiry)),
     dayDiff(item.expiry),
     item.stock,
-    item.stock ? item.totalCost / item.stock : 0,
+    unitCost(item),
     item.totalCost,
   ]);
   const csv = [headings, ...lines].map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(";")).join("\n");
@@ -128,7 +138,7 @@ export default function Home() {
         const matchesTerm = !term || normalized(`${item.product} ${item.productCode} ${item.lot} ${item.supplier}`).includes(term);
         return inRange && matchesTerm && (supplier === "all" || item.supplier === supplier) && (group === "all" || item.group === group);
       })
-      .sort((a, b) => dayDiff(a.expiry) - dayDiff(b.expiry));
+      .sort(alphabetical);
   }, [range, search, supplier, group]);
 
   const supplierItems = useMemo(() => {
@@ -140,7 +150,7 @@ export default function Home() {
         const matchesTerm = !term || normalized(`${item.product} ${item.productCode} ${item.lot} ${item.supplier}`).includes(term);
         return matchesStatus && matchesTerm && (supplier === "all" || item.supplier === supplier) && (group === "all" || item.group === group);
       })
-      .sort((a, b) => dayDiff(a.expiry) - dayDiff(b.expiry));
+      .sort(alphabetical);
   }, [supplierMode, search, supplier, group]);
 
   const supplierReport = useMemo(() => {
@@ -155,7 +165,9 @@ export default function Home() {
       current.items.push(item);
       report.set(item.supplier, current);
     });
-    return [...report.entries()].map(([name, values]) => ({ name, ...values })).sort((a, b) => b.value - a.value);
+    return [...report.entries()]
+      .map(([name, values]) => ({ name, ...values }))
+      .sort((a, b) => a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" }));
   }, [supplierItems]);
 
   const displayedItems = tab === "products" ? filtered : supplierItems;
@@ -288,29 +300,25 @@ export default function Home() {
           <p>{tab === "products" ? "Lotes encontrados" : supplierMode === "expired" ? "Fornecedores com itens vencidos" : "Fornecedores com itens a vencer em até 120 dias"}</p>
           <strong>{tab === "products" ? `${filtered.length} registros` : `${supplierReport.length} fornecedores`}</strong>
         </div>
-        <div className="result-value"><span>Valor em estoque</span><strong>{money.format(totalFiltered)}</strong></div>
+        <div className="result-value"><span>Total em estoque</span><strong>{money.format(totalFiltered)}</strong></div>
       </section>
 
       {tab === "products" ? (
-        <section className="product-list" aria-live="polite">
+        <section className="product-list compact-list" aria-live="polite">
           {filtered.slice(0, visible).map((item, index) => {
-            const days = dayDiff(item.expiry);
-            const status = statusFor(days);
+            const status = statusFor(dayDiff(item.expiry));
             return (
-              <article className="product-card" key={`${item.productCode}-${item.lot}-${index}`} onClick={() => setSelected(item)} tabIndex={0} onKeyDown={(event) => event.key === "Enter" && setSelected(item)}>
-                <div className="card-topline">
+              <button className="supplier-product-row inventory-product-row" key={`${item.productCode}-${item.lot}-${index}`} onClick={() => setSelected(item)}>
+                <div className="supplier-product-name">
                   <span className={`status ${status.tone}`}>{status.label}</span>
-                  <span className="code">Cód. {item.productCode}</span>
+                  <strong>{item.product}</strong>
+                  <small>Cód. {item.productCode} · {item.supplier} · Lote {item.lot}</small>
                 </div>
-                <h2>{item.product}</h2>
-                <p className="supplier">{item.supplier}</p>
-                <div className="product-facts">
-                  <div><span>Validade</span><strong>{date.format(parseDate(item.expiry))}</strong></div>
-                  <div><span>Lote</span><strong>{item.lot}</strong></div>
-                  <div><span>Estoque</span><strong>{number.format(item.stock)}</strong></div>
-                  <div className="cost"><span>Valor</span><strong>{money.format(item.totalCost)}</strong></div>
-                </div>
-              </article>
+                <div><span>Validade</span><strong>{date.format(parseDate(item.expiry))}</strong></div>
+                <div><span>Estoque</span><strong>{number.format(item.stock)}</strong></div>
+                <div className="unit-cost"><span>Custo</span><strong>{money.format(unitCost(item))}</strong></div>
+                <div className="row-value"><span>Total</span><strong>{money.format(item.totalCost)}</strong></div>
+              </button>
             );
           })}
           {filtered.length === 0 && <div className="empty-state"><strong>Nenhum lote encontrado</strong><p>Altere a busca ou os filtros para ver outros produtos.</p></div>}
@@ -334,7 +342,7 @@ export default function Home() {
                     <span>{supplierMode === "expired" ? "Vencidos" : "A vencer até 120d"}</span>
                   </div>
                 </div>
-                <div className="supplier-value"><span>Valor</span><strong>{money.format(entry.value)}</strong></div>
+                <div className="supplier-value"><span>Total</span><strong>{money.format(entry.value)}</strong></div>
                 <span className="expand-icon" aria-hidden="true">{expandedSupplier === entry.name ? "−" : "+"}</span>
               </button>
               {expandedSupplier === entry.name && (
@@ -354,7 +362,8 @@ export default function Home() {
                         </div>
                         <div><span>Validade</span><strong>{date.format(parseDate(item.expiry))}</strong></div>
                         <div><span>Estoque</span><strong>{number.format(item.stock)}</strong></div>
-                        <div className="row-value"><span>Valor</span><strong>{money.format(item.totalCost)}</strong></div>
+                        <div className="unit-cost"><span>Custo</span><strong>{money.format(unitCost(item))}</strong></div>
+                        <div className="row-value"><span>Total</span><strong>{money.format(item.totalCost)}</strong></div>
                       </button>
                     );
                   })}
@@ -382,9 +391,9 @@ export default function Home() {
               <div><span>Grupo</span><strong>{selected.group}</strong></div>
               <div><span>Empresa</span><strong>{selected.company}</strong></div>
               <div><span>Estoque</span><strong>{number.format(selected.stock)}</strong></div>
-              <div><span>Custo unitário</span><strong>{money.format(selected.stock ? selected.totalCost / selected.stock : 0)}</strong></div>
+              <div><span>Custo unitário</span><strong>{money.format(unitCost(selected))}</strong></div>
             </div>
-            <div className="detail-total"><span>Valor total em estoque</span><strong>{money.format(selected.totalCost)}</strong></div>
+            <div className="detail-total"><span>Total em estoque</span><strong>{money.format(selected.totalCost)}</strong></div>
           </section>
         </div>
       )}
