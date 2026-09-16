@@ -18,6 +18,7 @@ type Item = {
 
 type RangeFilter = "period" | "expired" | "30" | "60" | "120" | "all";
 type Tab = "products" | "suppliers";
+type SupplierMode = "expired" | "next120";
 
 const items = inventoryData as Item[];
 const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
@@ -75,6 +76,8 @@ function downloadCsv(rows: Item[]) {
 
 export default function Home() {
   const [tab, setTab] = useState<Tab>("products");
+  const [supplierMode, setSupplierMode] = useState<SupplierMode>("expired");
+  const [expandedSupplier, setExpandedSupplier] = useState<string | null>(null);
   const [range, setRange] = useState<RangeFilter>("period");
   const [search, setSearch] = useState("");
   const [supplier, setSupplier] = useState("all");
@@ -128,21 +131,35 @@ export default function Home() {
       .sort((a, b) => dayDiff(a.expiry) - dayDiff(b.expiry));
   }, [range, search, supplier, group]);
 
+  const supplierItems = useMemo(() => {
+    const term = normalized(search.trim());
+    return items
+      .filter((item) => {
+        const days = dayDiff(item.expiry);
+        const matchesStatus = supplierMode === "expired" ? days < 0 : days >= 0 && days <= 120;
+        const matchesTerm = !term || normalized(`${item.product} ${item.productCode} ${item.lot} ${item.supplier}`).includes(term);
+        return matchesStatus && matchesTerm && (supplier === "all" || item.supplier === supplier) && (group === "all" || item.group === group);
+      })
+      .sort((a, b) => dayDiff(a.expiry) - dayDiff(b.expiry));
+  }, [supplierMode, search, supplier, group]);
+
   const supplierReport = useMemo(() => {
-    const report = new Map<string, { lots: number; value: number; expired: number; next120: number }>();
-    filtered.forEach((item) => {
-      const current = report.get(item.supplier) ?? { lots: 0, value: 0, expired: 0, next120: 0 };
+    const report = new Map<string, { lots: number; value: number; expired: number; next120: number; items: Item[] }>();
+    supplierItems.forEach((item) => {
+      const current = report.get(item.supplier) ?? { lots: 0, value: 0, expired: 0, next120: 0, items: [] };
       const days = dayDiff(item.expiry);
       current.lots += 1;
       current.value += item.totalCost;
       if (days < 0) current.expired += 1;
       if (days >= 0 && days <= 120) current.next120 += 1;
+      current.items.push(item);
       report.set(item.supplier, current);
     });
     return [...report.entries()].map(([name, values]) => ({ name, ...values })).sort((a, b) => b.value - a.value);
-  }, [filtered]);
+  }, [supplierItems]);
 
-  const totalFiltered = filtered.reduce((sum, item) => sum + item.totalCost, 0);
+  const displayedItems = tab === "products" ? filtered : supplierItems;
+  const totalFiltered = displayedItems.reduce((sum, item) => sum + item.totalCost, 0);
   const maxSupplierValue = Math.max(...supplierReport.map((entry) => entry.value), 1);
   const hasExtraFilters = supplier !== "all" || group !== "all";
 
@@ -218,7 +235,7 @@ export default function Home() {
         <button className={`filter-button ${hasExtraFilters ? "active" : ""}`} onClick={() => setFiltersOpen((value) => !value)}>
           Filtros {hasExtraFilters && <span>•</span>}
         </button>
-        <button className="export-button" onClick={() => downloadCsv(filtered)}>Exportar CSV</button>
+        <button className="export-button" onClick={() => downloadCsv(displayedItems)}>Exportar CSV</button>
       </section>
 
       {filtersOpen && (
@@ -235,7 +252,7 @@ export default function Home() {
               {groups.map((name) => <option key={name} value={name}>{name}</option>)}
             </select>
           </label>
-          <label>Período
+          {tab === "products" && <label>Período
             <select value={range} onChange={(event) => selectRange(event.target.value as RangeFilter)}>
               <option value="period">Vencidos + próximos 120 dias</option>
               <option value="expired">Somente vencidos</option>
@@ -244,14 +261,31 @@ export default function Home() {
               <option value="120">Próximos 120 dias</option>
               <option value="all">Todo o estoque</option>
             </select>
-          </label>
+          </label>}
           {hasExtraFilters && <button className="clear-filters" onClick={() => { setSupplier("all"); setGroup("all"); }}>Limpar filtros</button>}
+        </section>
+      )}
+
+      {tab === "suppliers" && (
+        <section className="supplier-status-switch" aria-label="Situação dos lotes por fornecedor">
+          <button
+            className={supplierMode === "expired" ? "active expired" : ""}
+            onClick={() => { setSupplierMode("expired"); setExpandedSupplier(null); }}
+          >
+            <span>Vencidos</span><strong>{counts.expired}</strong>
+          </button>
+          <button
+            className={supplierMode === "next120" ? "active next" : ""}
+            onClick={() => { setSupplierMode("next120"); setExpandedSupplier(null); }}
+          >
+            <span>A vencer em até 120 dias</span><strong>{counts.d120}</strong>
+          </button>
         </section>
       )}
 
       <section className="result-heading">
         <div>
-          <p>{tab === "products" ? "Lotes encontrados" : "Resumo por fornecedor"}</p>
+          <p>{tab === "products" ? "Lotes encontrados" : supplierMode === "expired" ? "Fornecedores com itens vencidos" : "Fornecedores com itens a vencer em até 120 dias"}</p>
           <strong>{tab === "products" ? `${filtered.length} registros` : `${supplierReport.length} fornecedores`}</strong>
         </div>
         <div className="result-value"><span>Valor em estoque</span><strong>{money.format(totalFiltered)}</strong></div>
@@ -285,20 +319,50 @@ export default function Home() {
       ) : (
         <section className="supplier-list">
           {supplierReport.map((entry, index) => (
-            <article className="supplier-card" key={entry.name}>
-              <div className="supplier-rank">{String(index + 1).padStart(2, "0")}</div>
-              <div className="supplier-main">
-                <h2>{entry.name}</h2>
-                <div className="bar"><span style={{ width: `${Math.max((entry.value / maxSupplierValue) * 100, 2)}%` }} /></div>
-                <div className="supplier-metrics">
-                  <span><strong>{entry.lots}</strong> lotes</span>
-                  <span><strong>{entry.expired}</strong> vencidos</span>
-                  <span><strong>{entry.next120}</strong> até 120d</span>
+            <article className={`supplier-group ${expandedSupplier === entry.name ? "expanded" : ""}`} key={entry.name}>
+              <button
+                className="supplier-card"
+                onClick={() => setExpandedSupplier((current) => current === entry.name ? null : entry.name)}
+                aria-expanded={expandedSupplier === entry.name}
+              >
+                <div className="supplier-rank">{String(index + 1).padStart(2, "0")}</div>
+                <div className="supplier-main">
+                  <h2>{entry.name}</h2>
+                  <div className="bar"><span style={{ width: `${Math.max((entry.value / maxSupplierValue) * 100, 2)}%` }} /></div>
+                  <div className="supplier-metrics">
+                    <span><strong>{entry.lots}</strong> {entry.lots === 1 ? "lote" : "lotes"}</span>
+                    <span>{supplierMode === "expired" ? "Vencidos" : "A vencer até 120d"}</span>
+                  </div>
                 </div>
-              </div>
-              <div className="supplier-value"><span>Valor</span><strong>{money.format(entry.value)}</strong></div>
+                <div className="supplier-value"><span>Valor</span><strong>{money.format(entry.value)}</strong></div>
+                <span className="expand-icon" aria-hidden="true">{expandedSupplier === entry.name ? "−" : "+"}</span>
+              </button>
+              {expandedSupplier === entry.name && (
+                <div className="supplier-products">
+                  <div className="supplier-products-heading">
+                    <strong>{entry.lots} {entry.lots === 1 ? "item" : "itens"}</strong>
+                    <span>Toque em um produto para ver os detalhes</span>
+                  </div>
+                  {entry.items.map((item, itemIndex) => {
+                    const status = statusFor(dayDiff(item.expiry));
+                    return (
+                      <button className="supplier-product-row" key={`${item.productCode}-${item.lot}-${itemIndex}`} onClick={() => setSelected(item)}>
+                        <div className="supplier-product-name">
+                          <span className={`status ${status.tone}`}>{status.label}</span>
+                          <strong>{item.product}</strong>
+                          <small>Cód. {item.productCode} · Lote {item.lot}</small>
+                        </div>
+                        <div><span>Validade</span><strong>{date.format(parseDate(item.expiry))}</strong></div>
+                        <div><span>Estoque</span><strong>{number.format(item.stock)}</strong></div>
+                        <div className="row-value"><span>Valor</span><strong>{money.format(item.totalCost)}</strong></div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </article>
           ))}
+          {supplierReport.length === 0 && <div className="empty-state"><strong>Nenhum fornecedor encontrado</strong><p>Altere a busca ou os filtros para ver outros resultados.</p></div>}
         </section>
       )}
 
