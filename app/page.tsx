@@ -193,10 +193,13 @@ export default function Home() {
   return (
     <main className="app-shell">
       <header className="topbar">
-        <div className="brand-mark" aria-hidden="true">V</div>
-        <div className="brand-copy">
-          <strong>Validade em Dia</strong>
-          <span>Controle de estoque · CONFIAN-GO</span>
+        <div className="brand-lockup">
+          <img className="brand-logo" src="/agroconfianca-branca.png" alt="AgroConfiança" />
+          <div className="brand-divider" aria-hidden="true" />
+          <div className="brand-copy">
+            <strong>Validade em Dia</strong>
+            <span>Controle de estoque · CONFIAN-GO</span>
+          </div>
         </div>
         <button className="install-button" onClick={installApp} aria-label="Instalar aplicativo no celular">
           <span aria-hidden="true">↓</span> Instalar
@@ -205,8 +208,8 @@ export default function Home() {
 
       <section className="hero">
         <div>
-          <p className="eyebrow">Painel de atenção</p>
-          <h1>Produtos por validade</h1>
+          <p className="eyebrow">AgroConfiança · Gestão de estoque</p>
+          <h1>Validade em Dia</h1>
           <p>Acompanhe lotes vencidos e a vencer nos próximos 120 dias.</p>
         </div>
         <div className="updated"><span className="live-dot" /> Base: 16/09/2026</div>
@@ -375,7 +378,11 @@ export default function Home() {
         </section>
       )}
 
-      <footer><span>Validade em Dia</span><p>Dados importados da planilha de estoque.</p></footer>
+      <footer>
+        <img src="/agroconfianca-colorida.png" alt="AgroConfiança" />
+        <strong>Validade em Dia</strong>
+        <p>Dados importados da planilha de estoque.</p>
+      </footer>
 
       {selected && (
         <div className="modal-backdrop" role="presentation" onClick={() => setSelected(null)}>

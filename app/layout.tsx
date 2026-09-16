@@ -10,30 +10,30 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     metadataBase,
     title: "Validade em Dia",
-    description: "Controle de produtos vencidos e a vencer no estoque.",
-    applicationName: "Validade em Dia",
+    description: "AgroConfiança: controle de produtos vencidos e a vencer no estoque.",
+    applicationName: "AgroConfiança · Validade em Dia",
     manifest: "/manifest.webmanifest",
     icons: {
-      icon: "/icon-192.png",
-      apple: "/icon-192.png",
+      icon: "/agroconfianca-app.png",
+      apple: "/agroconfianca-app.png",
     },
     openGraph: {
       title: "Validade em Dia",
-      description: "Controle de produtos por validade",
+      description: "AgroConfiança · Controle de produtos por validade",
       type: "website",
-      images: [{ url: new URL("/og.png", metadataBase).toString(), width: 1734, height: 907, alt: "Validade em Dia" }],
+      images: [{ url: new URL("/agroconfianca-app.png", metadataBase).toString(), width: 1024, height: 1024, alt: "AgroConfiança · Validade em Dia" }],
     },
     twitter: {
       card: "summary_large_image",
       title: "Validade em Dia",
-      description: "Controle de produtos por validade",
-      images: [new URL("/og.png", metadataBase).toString()],
+      description: "AgroConfiança · Controle de produtos por validade",
+      images: [new URL("/agroconfianca-app.png", metadataBase).toString()],
     },
   };
 }
 
 export const viewport: Viewport = {
-  themeColor: "#164b38",
+  themeColor: "#086000",
   width: "device-width",
   initialScale: 1,
 };

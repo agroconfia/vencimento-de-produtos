@@ -4,11 +4,11 @@
   "description": "Controle de produtos vencidos e a vencer no estoque.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f7f6f0",
-  "theme_color": "#164b38",
+  "background_color": "#fbfaf2",
+  "theme_color": "#086000",
   "lang": "pt-BR",
   "icons": [
-    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
+    { "src": "/agroconfianca-app.png", "sizes": "1024x1024", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ]
 }
