@@ -36,11 +36,11 @@ function Format-Currency([double]$Value) {
     return $Value.ToString('C2', [System.Globalization.CultureInfo]::GetCultureInfo('pt-BR'))
 }
 
-function Preview-List($Items, [int]$Limit = 8) {
-    if (-not $Items -or $Items.Count -eq 0) { return '  Nenhum' }
-    $lines = @($Items | Select-Object -First $Limit | ForEach-Object { "- $($_.product) - lote $($_.lot)" })
-    if ($Items.Count -gt $Limit) { $lines += "- ... e mais $($Items.Count - $Limit)" }
-    return ($lines -join [Environment]::NewLine)
+function Preview-Lines($Items, [int]$Limit = 8) {
+    if (-not $Items -or $Items.Count -eq 0) { return @('  Nenhum') }
+    $lines = @($Items | Select-Object -First $Limit | ForEach-Object { "  - $($_.product) | lote $($_.lot)" })
+    if ($Items.Count -gt $Limit) { $lines += "  - ... e mais $($Items.Count - $Limit)" }
+    return $lines
 }
 
 $form = New-Object System.Windows.Forms.Form
@@ -98,6 +98,7 @@ $summary.Multiline = $true
 $summary.ReadOnly = $true
 $summary.ScrollBars = 'Vertical'
 $summary.WordWrap = $true
+$summary.Font = New-Object System.Drawing.Font('Consolas', 10)
 $summary.BackColor = [System.Drawing.Color]::White
 $summary.BorderStyle = 'FixedSingle'
 $summary.Location = New-Object System.Drawing.Point(32, 160)
@@ -157,32 +158,33 @@ $selectButton.Add_Click({
     try { $script:Preview = Get-Content -LiteralPath $previewPath -Raw -Encoding UTF8 | ConvertFrom-Json }
     finally { Remove-Item -LiteralPath $previewPath -Force -ErrorAction SilentlyContinue }
 
-    $warnings = if ($script:Preview.warnings.Count) { "`r`nATENÇÃO:`r`n$($script:Preview.warnings -join "`r`n")`r`n" } else { '' }
     $changedAfter = @($script:Preview.changed | ForEach-Object { $_.after })
-    $summary.Text = @"
-ARQUIVO
-$($script:Preview.source.fileName)
-Planilha: $($script:Preview.source.sheet) - $($script:Preview.counts.next) lotes válidos
-
-COMPARAÇÃO COM O SITE
-Permanecem iguais: $($script:Preview.counts.unchanged)
-+ Novos: $($script:Preview.counts.added)
-~ Alterados: $($script:Preview.counts.changed)
-- Removidos: $($script:Preview.counts.removed)
-
-VALOR TOTAL EM ESTOQUE
-Atual: $(Format-Currency $script:Preview.totals.current)
-Novo:  $(Format-Currency $script:Preview.totals.next)
-$warnings
-NOVOS
-$(Preview-List @($script:Preview.added))
-
-ALTERADOS
-$(Preview-List $changedAfter)
-
-REMOVIDOS
-$(Preview-List @($script:Preview.removed))
-"@
+    $summaryLines = @(
+        'ARQUIVO SELECIONADO'
+        "  $($script:Preview.source.fileName)"
+        "  Aba: $($script:Preview.source.sheet) | $($script:Preview.counts.next) lotes válidos"
+        ''
+        'RESUMO DAS ALTERAÇÕES'
+        ('  Permanecem iguais : {0}' -f $script:Preview.counts.unchanged)
+        ('  Novos             : {0}' -f $script:Preview.counts.added)
+        ('  Alterados         : {0}' -f $script:Preview.counts.changed)
+        ('  Removidos         : {0}' -f $script:Preview.counts.removed)
+        ''
+        'VALOR TOTAL EM ESTOQUE'
+        ('  Antes : {0}' -f (Format-Currency $script:Preview.totals.current))
+        ('  Depois: {0}' -f (Format-Currency $script:Preview.totals.next))
+    )
+    if ($script:Preview.warnings.Count) {
+        $summaryLines += @('', 'ATENÇÃO')
+        $summaryLines += @($script:Preview.warnings | ForEach-Object { "  - $_" })
+    }
+    $summaryLines += @('', 'NOVOS')
+    $summaryLines += @(Preview-Lines @($script:Preview.added))
+    $summaryLines += @('', 'ALTERADOS')
+    $summaryLines += @(Preview-Lines $changedAfter)
+    $summaryLines += @('', 'REMOVIDOS')
+    $summaryLines += @(Preview-Lines @($script:Preview.removed))
+    $summary.Text = $summaryLines -join [Environment]::NewLine
     Set-Busy 'Análise concluída. Confira o resumo antes de publicar.' $false
 })
 
