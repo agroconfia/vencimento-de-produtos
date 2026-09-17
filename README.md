@@ -1,4 +1,26 @@
-# vinext-starter
+# Vencimento de Produtos — AgroConfiança
+
+Aplicativo web para acompanhar produtos vencidos e a vencer, agrupados por fornecedor.
+
+## Atualizar o estoque pela planilha
+
+No Windows, dê dois cliques em `Atualizar Estoque.cmd`.
+
+1. Selecione a nova planilha `.xlsx`.
+2. Confira quantos lotes serão mantidos, incluídos, alterados e removidos.
+3. Clique em **Confirmar e publicar**.
+
+O atualizador valida os cabeçalhos, datas, números e lotes duplicados antes de permitir a publicação. Após a confirmação, ele substitui integralmente o estoque, testa o site, registra a alteração no GitHub e envia para o GitHub Pages. O histórico anterior permanece recuperável pelo Git.
+
+Página pública: https://agroconfia.github.io/vencimento-de-produtos/
+
+### Colunas aceitas
+
+O formato atual é reconhecido diretamente: `Cód. Empresa`, `Empresa`, `Cód. Produto`, `Produto`, `Grupo`, `Fabricante`, `Lote`, `Validade`, `Custo Médio` e `Estoque`.
+
+Na exportação da AgroConfiança, `Custo Médio` representa o valor total do lote. O site calcula o custo unitário dividindo esse valor pelo estoque.
+
+## Desenvolvimento
 
 A clean full-stack starter running on
 [vinext](https://github.com/cloudflare/vinext), with optional Cloudflare D1 and

@@ -9,8 +9,9 @@
     "dev": "vinext dev",
     "build": "vinext build",
     "build:pages": "vite build --config vite.github-pages.config.ts",
+    "inventory:preview": "node scripts/inventory-importer.mjs preview",
     "start": "vinext start",
-    "test": "npm run build && npm run build:pages && node --test tests/rendered-html.test.mjs",
+    "test": "npm run build && npm run build:pages && node --test tests/rendered-html.test.mjs tests/inventory-importer.test.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate"
   },
@@ -32,6 +33,7 @@
     "drizzle-kit": "0.31.10",
     "eslint": "9.39.4",
     "eslint-config-next": "16.2.6",
+    "exceljs": "^4.4.0",
     "react-server-dom-webpack": "19.2.6",
     "tailwindcss": "4.2.1",
     "typescript": "5.9.3",
