@@ -6,6 +6,7 @@ $OutputEncoding = [System.Text.Encoding]::UTF8
 
 $RepoRoot = Split-Path -Parent $PSScriptRoot
 $InventoryPath = Join-Path $RepoRoot 'app\data\inventory.json'
+$MetadataPath = Join-Path $RepoRoot 'app\data\inventory-meta.json'
 $ImporterPath = Join-Path $RepoRoot 'scripts\inventory-importer.mjs'
 $script:SelectedFile = $null
 $script:Preview = $null
@@ -117,7 +118,7 @@ $form.Controls.Add($status)
 function Set-Busy([string]$Message, [bool]$Busy) {
     $status.Text = $Message
     $selectButton.Enabled = -not $Busy
-    $hasChanges = $script:Preview -and (($script:Preview.counts.added + $script:Preview.counts.changed + $script:Preview.counts.removed) -gt 0)
+    $hasChanges = $script:Preview -and $script:Preview.hasChanges
     $publishButton.Enabled = (-not $Busy) -and $hasChanges
     $form.UseWaitCursor = $Busy
     [System.Windows.Forms.Application]::DoEvents()
@@ -149,7 +150,7 @@ $selectButton.Add_Click({
     $script:SelectedFile = $dialog.FileName
     $previewPath = Join-Path ([System.IO.Path]::GetTempPath()) ("agroconfianca-preview-{0}.json" -f [guid]::NewGuid())
     Set-Busy 'Validando a planilha e comparando os lotes...' $true
-    $result = Invoke-CommandLine $Node @($ImporterPath, 'preview', '--file', $script:SelectedFile, '--output', $previewPath, '--inventory', $InventoryPath)
+    $result = Invoke-CommandLine $Node @($ImporterPath, 'preview', '--file', $script:SelectedFile, '--output', $previewPath, '--inventory', $InventoryPath, '--metadata', $MetadataPath)
     if ($result.ExitCode -ne 0) {
         Set-Busy 'A planilha não pôde ser analisada.' $false
         [System.Windows.Forms.MessageBox]::Show($result.Output, 'Erro na planilha', 'OK', 'Error') | Out-Null
@@ -173,6 +174,8 @@ $selectButton.Add_Click({
         'VALOR TOTAL EM ESTOQUE'
         ('  Antes : {0}' -f (Format-Currency $script:Preview.totals.current))
         ('  Depois: {0}' -f (Format-Currency $script:Preview.totals.next))
+        ''
+        ('DATA DA ATUALIZAÇÃO NO SITE: {0}' -f ([datetime]::ParseExact($script:Preview.lastUpdated.next, 'yyyy-MM-dd', $null).ToString('dd/MM/yyyy')))
     )
     if ($script:Preview.warnings.Count) {
         $summaryLines += @('', 'ATENÇÃO')
@@ -193,18 +196,20 @@ $publishButton.Add_Click({
     if ($answer -ne 'Yes') { return }
 
     $backupPath = Join-Path ([System.IO.Path]::GetTempPath()) ("inventory-backup-{0}.json" -f [guid]::NewGuid())
+    $metadataBackupPath = Join-Path ([System.IO.Path]::GetTempPath()) ("inventory-meta-backup-{0}.json" -f [guid]::NewGuid())
     $applyPath = Join-Path ([System.IO.Path]::GetTempPath()) ("agroconfianca-apply-{0}.json" -f [guid]::NewGuid())
     Copy-Item -LiteralPath $InventoryPath -Destination $backupPath -Force
+    Copy-Item -LiteralPath $MetadataPath -Destination $metadataBackupPath -Force
     $committed = $false
     try {
         Set-Busy 'Aplicando os novos dados...' $true
-        $apply = Invoke-CommandLine $Node @($ImporterPath, 'apply', '--file', $script:SelectedFile, '--output', $applyPath, '--inventory', $InventoryPath, '--expected-sha256', $script:Preview.source.sha256)
+        $apply = Invoke-CommandLine $Node @($ImporterPath, 'apply', '--file', $script:SelectedFile, '--output', $applyPath, '--inventory', $InventoryPath, '--metadata', $MetadataPath, '--expected-sha256', $script:Preview.source.sha256)
         if ($apply.ExitCode -ne 0) { throw $apply.Output }
         Set-Busy 'Testando o site antes de publicar...' $true
         $build = Invoke-CommandLine $Npm @('run', 'build:pages')
         if ($build.ExitCode -ne 0) { throw "O teste do site falhou.`r`n$($build.Output)" }
         Set-Busy 'Registrando a atualização no GitHub...' $true
-        $add = Invoke-CommandLine $Git @('add', '--', 'app/data/inventory.json')
+        $add = Invoke-CommandLine $Git @('add', '--', 'app/data/inventory.json', 'app/data/inventory-meta.json')
         if ($add.ExitCode -ne 0) { throw $add.Output }
         $commit = Invoke-CommandLine $Git @('commit', '-m', "Atualiza estoque pela planilha em $(Get-Date -Format 'yyyy-MM-dd')")
         if ($commit.ExitCode -ne 0) { throw $commit.Output }
@@ -221,7 +226,8 @@ $publishButton.Add_Click({
     catch {
         if (-not $committed) {
             Copy-Item -LiteralPath $backupPath -Destination $InventoryPath -Force
-            Invoke-CommandLine $Git @('restore', '--staged', '--', 'app/data/inventory.json') | Out-Null
+            Copy-Item -LiteralPath $metadataBackupPath -Destination $MetadataPath -Force
+            Invoke-CommandLine $Git @('restore', '--staged', '--', 'app/data/inventory.json', 'app/data/inventory-meta.json') | Out-Null
             $status.Text = 'A atualização não foi publicada. O estoque anterior foi restaurado.'
         }
         else {
@@ -230,7 +236,7 @@ $publishButton.Add_Click({
         [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, 'Falha na atualização', 'OK', 'Error') | Out-Null
     }
     finally {
-        Remove-Item -LiteralPath $backupPath, $applyPath -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath $backupPath, $metadataBackupPath, $applyPath -Force -ErrorAction SilentlyContinue
         $form.UseWaitCursor = $false
         $selectButton.Enabled = $true
     }

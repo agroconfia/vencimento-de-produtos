@@ -25,6 +25,7 @@ test("server-renders the inventory application", async () => {
   assert.match(html, /Fornecedores/);
   assert.match(html, /Produtos/);
   assert.match(html, /AGRICHEM DO BRASIL SA/);
+  assert.match(html, /Última atualização:\s*(?:<!-- -->)?17\/09\/2026/);
   assert.doesNotMatch(html, /codex-preview|Your site is taking shape/);
 });
 

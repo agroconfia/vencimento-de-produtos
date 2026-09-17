@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import inventoryData from "./data/inventory.json";
+import inventoryMeta from "./data/inventory-meta.json";
 
 type Item = {
   companyCode: number;
@@ -24,6 +25,7 @@ const items = inventoryData as Item[];
 const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const number = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 2 });
 const date = new Intl.DateTimeFormat("pt-BR");
+const lastUpdated = date.format(parseDate(inventoryMeta.lastUpdated));
 const publicPath = (file: string) => `${import.meta.env.BASE_URL || "/"}${file.replace(/^\/+/, "")}`;
 
 function parseDate(value: string) {
@@ -213,7 +215,7 @@ export default function Home() {
           <h1>Vencimento de Produtos</h1>
           <p>Acompanhe lotes vencidos e a vencer nos próximos 120 dias.</p>
         </div>
-        <div className="updated"><span className="live-dot" /> Base: 16/09/2026</div>
+        <div className="updated"><span className="live-dot" /> Última atualização: {lastUpdated}</div>
       </section>
 
       <section className="summary-grid" aria-label="Resumo de validade">

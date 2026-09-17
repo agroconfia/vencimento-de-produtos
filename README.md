@@ -12,6 +12,8 @@ No Windows, dê dois cliques em `Atualizar Estoque.cmd`.
 
 O atualizador valida os cabeçalhos, datas, números e lotes duplicados antes de permitir a publicação. Após a confirmação, ele substitui integralmente o estoque, testa o site, registra a alteração no GitHub e envia para o GitHub Pages. O histórico anterior permanece recuperável pelo Git.
 
+A data de **Última atualização** exibida no site é gravada automaticamente quando a importação é confirmada.
+
 Página pública: https://agroconfia.github.io/vencimento-de-produtos/
 
 ### Colunas aceitas

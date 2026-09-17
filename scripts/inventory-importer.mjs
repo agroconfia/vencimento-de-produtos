@@ -7,6 +7,7 @@ import ExcelJS from "exceljs";
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(scriptDir, "..");
 const defaultInventoryPath = path.join(repoRoot, "app", "data", "inventory.json");
+const defaultMetadataPath = path.join(repoRoot, "app", "data", "inventory-meta.json");
 
 const aliases = {
   companyCode: ["cod empresa", "codigo empresa"],
@@ -203,9 +204,31 @@ function sumInventory(items) {
   return items.reduce((sum, item) => sum + item.totalCost, 0);
 }
 
-async function createPreview(filePath, inventoryPath) {
+function currentDateInSaoPaulo() {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const value = Object.fromEntries(parts.filter((part) => part.type !== "literal").map((part) => [part.type, part.value]));
+  return `${value.year}-${value.month}-${value.day}`;
+}
+
+async function readCurrentMetadata(metadataPath) {
+  try {
+    return JSON.parse(await fs.readFile(metadataPath, "utf8"));
+  } catch (error) {
+    if (error?.code === "ENOENT") return { lastUpdated: null };
+    throw error;
+  }
+}
+
+async function createPreview(filePath, inventoryPath, metadataPath) {
   const parsed = await parseInventoryWorkbook(filePath);
   const currentItems = JSON.parse(await fs.readFile(inventoryPath, "utf8"));
+  const currentMetadata = await readCurrentMetadata(metadataPath);
+  const nextLastUpdated = currentDateInSaoPaulo();
   const difference = compareInventory(currentItems, parsed.items);
   const warnings = [];
   if (parsed.items.length < currentItems.length * 0.5) warnings.push("A nova planilha tem menos da metade dos lotes atuais. Confira se o arquivo selecionado está completo.");
@@ -214,6 +237,8 @@ async function createPreview(filePath, inventoryPath) {
     source: { path: path.resolve(filePath), fileName: path.basename(filePath), sha256: await sha256(filePath), sheet: parsed.sheet, headerRow: parsed.headerRow, costSource: parsed.costSource },
     counts: { current: currentItems.length, next: parsed.items.length, unchanged: difference.unchanged.length, added: difference.added.length, changed: difference.changed.length, removed: difference.removed.length },
     totals: { current: Number(sumInventory(currentItems).toFixed(2)), next: Number(sumInventory(parsed.items).toFixed(2)) },
+    lastUpdated: { current: currentMetadata.lastUpdated, next: nextLastUpdated },
+    hasChanges: difference.added.length > 0 || difference.changed.length > 0 || difference.removed.length > 0 || currentMetadata.lastUpdated !== nextLastUpdated,
     warnings,
     added: difference.added,
     changed: difference.changed,
@@ -236,11 +261,13 @@ async function main() {
   const args = parseArguments(process.argv.slice(2));
   if (!["preview", "apply"].includes(args.command) || !args.file || !args.output) throw new Error("Uso: node scripts/inventory-importer.mjs <preview|apply> --file planilha.xlsx --output resultado.json");
   const inventoryPath = args.inventory ? path.resolve(args.inventory) : defaultInventoryPath;
-  const preview = await createPreview(args.file, inventoryPath);
+  const metadataPath = args.metadata ? path.resolve(args.metadata) : defaultMetadataPath;
+  const preview = await createPreview(args.file, inventoryPath, metadataPath);
   if (args.command === "apply") {
     if (!args["expected-sha256"] || args["expected-sha256"] !== preview.source.sha256) throw new Error("A planilha foi alterada depois da prévia. Analise o arquivo novamente antes de publicar.");
     const parsed = await parseInventoryWorkbook(args.file);
     await fs.writeFile(inventoryPath, `${JSON.stringify(parsed.items)}\n`, "utf8");
+    await fs.writeFile(metadataPath, `${JSON.stringify({ lastUpdated: preview.lastUpdated.next })}\n`, "utf8");
     preview.applied = true;
   }
   await fs.writeFile(path.resolve(args.output), `${JSON.stringify(preview, null, 2)}\n`, "utf8");
