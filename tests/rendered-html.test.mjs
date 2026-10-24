@@ -20,12 +20,15 @@ test("server-renders the inventory application", async () => {
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
 
   const html = await response.text();
+  const metadata = JSON.parse(await readFile(new URL("../app/data/inventory-meta.json", import.meta.url), "utf8"));
+  const [year, month, day] = metadata.lastUpdated.split("-");
+  const displayedLastUpdate = `${day}\\/${month}\\/${year}`;
   assert.match(html, /<title>Vencimento de Produtos<\/title>/i);
   assert.match(html, /Controle de Vencimento de Estoque/);
   assert.match(html, /Fornecedores/);
   assert.match(html, /Produtos/);
   assert.match(html, /AGRICHEM DO BRASIL SA/);
-  assert.match(html, /Última atualização:\s*(?:<!-- -->)?17\/09\/2026/);
+  assert.match(html, new RegExp(`Última atualização:\\s*(?:<!-- -->)?${displayedLastUpdate}`));
   assert.doesNotMatch(html, /codex-preview|Your site is taking shape/);
 });
 

@@ -37,11 +37,9 @@ function Format-Currency([double]$Value) {
     return $Value.ToString('C2', [System.Globalization.CultureInfo]::GetCultureInfo('pt-BR'))
 }
 
-function Preview-Lines($Items, [int]$Limit = 8) {
+function Preview-Lines($Items) {
     if (-not $Items -or $Items.Count -eq 0) { return @('  Nenhum') }
-    $lines = @($Items | Select-Object -First $Limit | ForEach-Object { "  - $($_.product) | lote $($_.lot)" })
-    if ($Items.Count -gt $Limit) { $lines += "  - ... e mais $($Items.Count - $Limit)" }
-    return $lines
+    return @($Items | ForEach-Object { "  - $($_.product) | lote $($_.lot)" })
 }
 
 $form = New-Object System.Windows.Forms.Form
