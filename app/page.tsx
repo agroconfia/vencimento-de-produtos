@@ -17,7 +17,7 @@ type Item = {
   stock: number;
 };
 
-type RangeFilter = "period" | "expired" | "30" | "60" | "120" | "all";
+type RangeFilter = "period" | "expired" | "30" | "60" | "120" | "after120" | "all";
 type Tab = "products" | "suppliers";
 type SupplierMode = "expired" | "next120";
 
@@ -117,6 +117,7 @@ export default function Home() {
     const expired = items.filter((item) => dayDiff(item.expiry) < 0);
     const d30 = items.filter((item) => dayDiff(item.expiry) >= 0 && dayDiff(item.expiry) <= 30);
     const d120 = items.filter((item) => dayDiff(item.expiry) >= 0 && dayDiff(item.expiry) <= 120);
+    const after120 = items.filter((item) => dayDiff(item.expiry) > 120);
     return {
       expired: expired.length,
       expiredValue: expired.reduce((sum, item) => sum + item.totalCost, 0),
@@ -124,6 +125,8 @@ export default function Home() {
       d30Value: d30.reduce((sum, item) => sum + item.totalCost, 0),
       d120: d120.length,
       d120Value: d120.reduce((sum, item) => sum + item.totalCost, 0),
+      after120: after120.length,
+      after120Value: after120.reduce((sum, item) => sum + item.totalCost, 0),
     };
   }, []);
 
@@ -137,7 +140,8 @@ export default function Home() {
           (range === "expired" && days < 0) ||
           (range === "30" && days >= 0 && days <= 30) ||
           (range === "60" && days >= 0 && days <= 60) ||
-          (range === "120" && days >= 0 && days <= 120);
+          (range === "120" && days >= 0 && days <= 120) ||
+          (range === "after120" && days > 120);
         const matchesTerm = !term || normalized(`${item.product} ${item.productCode} ${item.lot} ${item.supplier}`).includes(term);
         return inRange && matchesTerm && (supplier === "all" || item.supplier === supplier) && (group === "all" || item.group === group);
       })
@@ -213,7 +217,7 @@ export default function Home() {
         <div>
           <p className="eyebrow">Controle de Vencimento de Estoque</p>
           <h1>Vencimento de Produtos</h1>
-          <p>Acompanhe lotes vencidos e a vencer nos próximos 120 dias.</p>
+          <p>Acompanhe lotes vencidos e a vencer por período.</p>
         </div>
         <div className="updated"><span className="live-dot" /> Última atualização: {lastUpdated}</div>
       </section>
@@ -236,6 +240,12 @@ export default function Home() {
           <span className="summary-label">Até 120 dias</span>
           <strong>{counts.d120}</strong>
           <small>{money.format(counts.d120Value)}</small>
+        </button>
+        <button className={`summary-card green ${range === "after120" ? "active" : ""}`} onClick={() => selectRange("after120")}>
+          <span className="summary-icon">120+</span>
+          <span className="summary-label">Após 120 dias</span>
+          <strong>{counts.after120}</strong>
+          <small>{money.format(counts.after120Value)}</small>
         </button>
       </section>
 
@@ -277,6 +287,7 @@ export default function Home() {
               <option value="30">Próximos 30 dias</option>
               <option value="60">Próximos 60 dias</option>
               <option value="120">Próximos 120 dias</option>
+              <option value="after120">Após 120 dias</option>
               <option value="all">Todo o estoque</option>
             </select>
           </label>}

@@ -28,6 +28,7 @@ test("server-renders the inventory application", async () => {
   assert.match(html, /Fornecedores/);
   assert.match(html, /Produtos/);
   assert.match(html, /AGRICHEM DO BRASIL SA/);
+  assert.match(html, /Após 120 dias/);
   assert.match(html, new RegExp(`Última atualização:\\s*(?:<!-- -->)?${displayedLastUpdate}`));
   assert.doesNotMatch(html, /codex-preview|Your site is taking shape/);
 });
@@ -47,6 +48,7 @@ test("builds a GitHub Pages version with subpath-safe assets", async () => {
   assert.match(manifest, /"scope": "\.\/"/);
   assert.match(serviceWorker, /self\.registration\.scope/);
   assert.match(page, /publicPath\("sw\.js"\)/);
+  assert.match(page, /range === "after120" && days > 120/);
   assert.match(workflow, /actions\/deploy-pages@v4/);
   assert.match(workflow, /path: dist-pages/);
 });

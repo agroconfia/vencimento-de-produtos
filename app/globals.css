@@ -45,7 +45,7 @@ button { color: inherit; }
 .updated { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; padding-bottom: 5px; }
 .live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--lime); box-shadow: 0 0 0 4px var(--lime-soft); }
 
-.summary-grid { max-width: 1180px; margin: 0 auto; padding: 0 24px 30px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.summary-grid { max-width: 1180px; margin: 0 auto; padding: 0 24px 30px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
 .summary-card { text-align: left; position: relative; min-height: 144px; padding: 21px; border: 1px solid var(--line); border-radius: 16px; background: var(--white); cursor: pointer; transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease; overflow: hidden; }
 .summary-card:hover, .summary-card.active { transform: translateY(-2px); box-shadow: 0 10px 28px rgba(20,52,42,.09); }
 .summary-card.active { border-color: currentColor; }
@@ -53,6 +53,7 @@ button { color: inherit; }
 .summary-card.red { color: var(--red); }
 .summary-card.orange { color: var(--orange); }
 .summary-card.yellow { color: var(--yellow); }
+.summary-card.green { color: var(--green-2); }
 .summary-icon { position: absolute; right: 18px; top: 18px; width: 36px; height: 36px; display: grid; place-items: center; border-radius: 10px; background: currentColor; color: white; font-size: 11px; font-weight: 850; }
 .summary-label { display: block; color: var(--muted); font-size: 12px; font-weight: 750; }
 .summary-card > strong { display: block; margin-top: 9px; color: var(--ink); font-family: Georgia, serif; font-size: 38px; font-weight: 500; line-height: 1; }
@@ -185,8 +186,6 @@ footer p { margin: 6px 0 0; }
   .updated { margin-top: 17px; padding: 0; }
   .summary-grid { padding: 0 16px 24px; grid-template-columns: 1fr 1fr; gap: 9px; }
   .summary-card { min-height: 128px; padding: 16px; }
-  .summary-card:first-child { grid-column: 1 / -1; }
-  .summary-card:first-child > strong { font-size: 43px; }
   .summary-icon { right: 14px; top: 14px; }
   .summary-card > strong { font-size: 31px; }
   .summary-card small { font-size: 10px; }
