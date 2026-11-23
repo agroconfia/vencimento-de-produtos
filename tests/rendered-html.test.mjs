@@ -49,9 +49,9 @@ test("builds a GitHub Pages version with subpath-safe assets", async () => {
   assert.match(serviceWorker, /self\.registration\.scope/);
   assert.match(page, /publicPath\("sw\.js"\)/);
   assert.match(page, /range === "after120" && days > 120/);
-  assert.match(page, /Pareto e evolução do estoque/);
+  assert.match(page, /Pareto de vencidos e evolução do estoque/);
   assert.match(page, /outflowValue/);
-  assert.match(page, /paretoRows\(items, "supplier"\)/);
+  assert.match(page, /paretoRows\(expiredItems, "supplier"\)/);
   assert.match(workflow, /actions\/deploy-pages@v4/);
   assert.match(workflow, /path: dist-pages/);
 });

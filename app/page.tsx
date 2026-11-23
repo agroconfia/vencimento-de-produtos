@@ -208,12 +208,13 @@ export default function Home() {
       .sort((a, b) => a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" }));
   }, [supplierItems]);
 
+  const expiredItems = useMemo(() => items.filter((item) => dayDiff(item.expiry) < 0), []);
   const pareto = useMemo(() => ({
-    suppliers: paretoRows(items, "supplier"),
-    products: paretoRows(items, "product"),
-  }), []);
+    suppliers: paretoRows(expiredItems, "supplier"),
+    products: paretoRows(expiredItems, "product"),
+  }), [expiredItems]);
   const currentPareto = pareto[paretoMode];
-  const totalInventory = useMemo(() => items.reduce((sum, item) => sum + item.totalCost, 0), []);
+  const totalExpired = useMemo(() => expiredItems.reduce((sum, item) => sum + item.totalCost, 0), [expiredItems]);
   const history = useMemo(() => [...inventoryHistory].sort((a, b) => b.date.localeCompare(a.date)), []);
   const latestMovement = history[0];
 
@@ -438,13 +439,13 @@ export default function Home() {
         </section>
       ) : (
         <section className="analytics-page">
-          <div className="analytics-heading"><div><p className="eyebrow">Análise de estoque</p><h2>Pareto e evolução do estoque</h2><p>Priorize os itens e fornecedores que concentram o maior valor em estoque.</p></div></div>
+          <div className="analytics-heading"><div><p className="eyebrow">Análise de estoque</p><h2>Pareto de vencidos e evolução do estoque</h2><p>Priorize os itens e fornecedores que concentram o maior valor já vencido.</p></div></div>
           <div className="analytics-summary">
-            <article><span>Estoque atual</span><strong>{money.format(totalInventory)}</strong><small>{items.length} lotes cadastrados</small></article>
+            <article><span>Valor vencido</span><strong className="outflow">{money.format(totalExpired)}</strong><small>{expiredItems.length} lotes vencidos</small></article>
             <article><span>Última saída registrada</span><strong className="outflow">{money.format(latestMovement?.outflowValue ?? 0)}</strong><small>{latestMovement ? `Atualização de ${date.format(parseDate(latestMovement.date))}` : "Sem atualizações registradas"}</small></article>
             <article><span>Saldo da última atualização</span><strong className={(latestMovement?.netChange ?? 0) >= 0 ? "positive" : "outflow"}>{money.format(latestMovement?.netChange ?? 0)}</strong><small>Entradas menos saídas no período</small></article>
           </div>
-          <div className="analytics-section-head"><div><p className="eyebrow">Modelo de Pareto</p><h3>Participação por valor em estoque</h3></div><div className="segmented" role="group" aria-label="Tipo da análise Pareto"><button className={paretoMode === "suppliers" ? "active" : ""} onClick={() => selectPareto("suppliers")}>Fornecedores</button><button className={paretoMode === "products" ? "active" : ""} onClick={() => selectPareto("products")}>Produtos</button></div></div>
+          <div className="analytics-section-head"><div><p className="eyebrow">Modelo de Pareto</p><h3>Participação no valor vencido</h3></div><div className="segmented" role="group" aria-label="Tipo da análise Pareto"><button className={paretoMode === "suppliers" ? "active" : ""} onClick={() => selectPareto("suppliers")}>Fornecedores</button><button className={paretoMode === "products" ? "active" : ""} onClick={() => selectPareto("products")}>Produtos</button></div></div>
           <div className="pareto-legend"><span className="pareto-a">A</span> até 80% acumulado <span className="pareto-b">B</span> até 95% <span className="pareto-c">C</span> demais itens</div>
           <div className="pareto-table" role="table" aria-label={`Pareto por ${paretoMode === "suppliers" ? "fornecedores" : "produtos"}`}>
             <div className="pareto-row pareto-header" role="row"><span>#</span><span>{paretoMode === "suppliers" ? "Fornecedor" : "Produto"}</span><span>Valor</span><span>%</span><span>Acumulado</span><span>Classe</span></div>
