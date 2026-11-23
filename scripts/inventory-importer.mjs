@@ -205,6 +205,10 @@ function sumInventory(items) {
   return items.reduce((sum, item) => sum + item.totalCost, 0);
 }
 
+function expiredInventory(items, referenceDate) {
+  return items.filter((item) => item.expiry < referenceDate);
+}
+
 function flowSummary(difference) {
   let outflowValue = 0;
   let inflowValue = 0;
@@ -257,7 +261,10 @@ async function createPreview(filePath, inventoryPath, metadataPath) {
   const currentMetadata = await readCurrentMetadata(metadataPath);
   const nextLastUpdated = currentDateInSaoPaulo();
   const difference = compareInventory(currentItems, parsed.items);
-  const flow = flowSummary(difference);
+  const currentExpiredItems = expiredInventory(currentItems, currentMetadata.lastUpdated ?? nextLastUpdated);
+  const nextExpiredItems = expiredInventory(parsed.items, nextLastUpdated);
+  const expiredDifference = compareInventory(currentExpiredItems, nextExpiredItems);
+  const flow = flowSummary(expiredDifference);
   const warnings = [];
   if (parsed.items.length < currentItems.length * 0.5) warnings.push("A nova planilha tem menos da metade dos lotes atuais. Confira se o arquivo selecionado está completo.");
   if (difference.removed.length > 50) warnings.push(`A atualização removerá ${difference.removed.length} lotes. Confira a lista antes de confirmar.`);
@@ -265,6 +272,12 @@ async function createPreview(filePath, inventoryPath, metadataPath) {
     source: { path: path.resolve(filePath), fileName: path.basename(filePath), sha256: await sha256(filePath), sheet: parsed.sheet, headerRow: parsed.headerRow, costSource: parsed.costSource },
     counts: { current: currentItems.length, next: parsed.items.length, unchanged: difference.unchanged.length, added: difference.added.length, changed: difference.changed.length, removed: difference.removed.length },
     totals: { current: Number(sumInventory(currentItems).toFixed(2)), next: Number(sumInventory(parsed.items).toFixed(2)) },
+    expired: {
+      current: Number(sumInventory(currentExpiredItems).toFixed(2)),
+      next: Number(sumInventory(nextExpiredItems).toFixed(2)),
+      currentLots: currentExpiredItems.length,
+      nextLots: nextExpiredItems.length,
+    },
     flow,
     lastUpdated: { current: currentMetadata.lastUpdated, next: nextLastUpdated },
     hasChanges: difference.added.length > 0 || difference.changed.length > 0 || difference.removed.length > 0 || currentMetadata.lastUpdated !== nextLastUpdated,
@@ -301,9 +314,9 @@ async function main() {
     const history = await readHistory(historyPath);
     history.push({
       date: preview.lastUpdated.next,
-      totalValue: preview.totals.next,
-      lots: preview.counts.next,
-      netChange: Number((preview.totals.next - preview.totals.current).toFixed(2)),
+      totalValue: preview.expired.next,
+      lots: preview.expired.nextLots,
+      netChange: Number((preview.expired.next - preview.expired.current).toFixed(2)),
       outflowValue: preview.flow.outflowValue,
       inflowValue: preview.flow.inflowValue,
     });

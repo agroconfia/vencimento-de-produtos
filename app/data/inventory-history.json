@@ -1,10 +1,3 @@
 [
-  { "date": "2026-09-17", "totalValue": 18799200.31, "lots": 368, "netChange": 0, "outflowValue": 0, "inflowValue": 0 },
-  { "date": "2026-09-21", "totalValue": 20021696.76, "lots": 375, "netChange": 1222496.45, "outflowValue": 49996.55, "inflowValue": 1272493 },
-  { "date": "2026-09-28", "totalValue": 23322021.03, "lots": 409, "netChange": 3300324.27, "outflowValue": 2452726.92, "inflowValue": 5753051.19 },
-  { "date": "2026-10-24", "totalValue": 1489033.32, "lots": 89, "netChange": -21832987.7, "outflowValue": 22330371.16, "inflowValue": 420378.66 },
-  { "date": "2026-10-26", "totalValue": 1441951.22, "lots": 89, "netChange": -47082.1, "outflowValue": 69714.5, "inflowValue": 22632.4 },
-  { "date": "2026-11-09", "totalValue": 1261480.34, "lots": 90, "netChange": -180470.88, "outflowValue": 405627.91, "inflowValue": 225157.03 },
-  { "date": "2026-11-20", "totalValue": 2906200.08, "lots": 148, "netChange": 1644719.74, "outflowValue": 345642.81, "inflowValue": 1990362.55 },
-  { "date": "2026-11-23", "totalValue": 3698880.11, "lots": 166, "netChange": 792680.03, "outflowValue": 4122.15, "inflowValue": 719797.38 }
+  { "date": "2026-11-23", "totalValue": 882598.41, "lots": 75, "netChange": 0, "outflowValue": 0, "inflowValue": 0 }
 ]

@@ -170,11 +170,11 @@ $selectButton.Add_Click({
         ('  Alterados         : {0}' -f $script:Preview.counts.changed)
         ('  Removidos         : {0}' -f $script:Preview.counts.removed)
         ''
-        'VALOR TOTAL EM ESTOQUE'
-        ('  Antes : {0}' -f (Format-Currency $script:Preview.totals.current))
-        ('  Depois: {0}' -f (Format-Currency $script:Preview.totals.next))
-        ('  Baixado: {0}' -f (Format-Currency $script:Preview.flow.outflowValue))
-        ('  Entradas: {0}' -f (Format-Currency $script:Preview.flow.inflowValue))
+        'ESTOQUE VENCIDO'
+        ('  Antes : {0} ({1} lotes)' -f (Format-Currency $script:Preview.expired.current), $script:Preview.expired.currentLots)
+        ('  Depois: {0} ({1} lotes)' -f (Format-Currency $script:Preview.expired.next), $script:Preview.expired.nextLots)
+        ('  Saídas: {0}' -f (Format-Currency $script:Preview.flow.outflowValue))
+        ('  Entradas de vencidos: {0}' -f (Format-Currency $script:Preview.flow.inflowValue))
         ''
         ('DATA DA ATUALIZAÇÃO NO SITE: {0}' -f ([datetime]::ParseExact($script:Preview.lastUpdated.next, 'yyyy-MM-dd', $null).ToString('dd/MM/yyyy')))
     )
