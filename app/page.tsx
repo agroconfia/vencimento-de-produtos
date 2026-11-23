@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import inventoryData from "./data/inventory.json";
 import inventoryMeta from "./data/inventory-meta.json";
+import historyData from "./data/inventory-history.json";
 
 type Item = {
   companyCode: number;
@@ -18,10 +19,21 @@ type Item = {
 };
 
 type RangeFilter = "period" | "expired" | "30" | "60" | "120" | "after120" | "all";
-type Tab = "products" | "suppliers";
+type Tab = "products" | "suppliers" | "analytics";
 type SupplierMode = "expired" | "next120";
+type ParetoMode = "suppliers" | "products";
+
+type HistoryEntry = {
+  date: string;
+  totalValue: number;
+  lots: number;
+  netChange: number;
+  outflowValue: number;
+  inflowValue: number;
+};
 
 const items = inventoryData as Item[];
+const inventoryHistory = historyData as HistoryEntry[];
 const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const number = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 2 });
 const date = new Intl.DateTimeFormat("pt-BR");
@@ -63,6 +75,23 @@ function unitCost(item: Item) {
   return item.stock ? item.totalCost / item.stock : 0;
 }
 
+function paretoRows(itemsToGroup: Item[], field: "supplier" | "product") {
+  const values = new Map<string, number>();
+  itemsToGroup.forEach((item) => values.set(item[field], (values.get(item[field]) ?? 0) + item.totalCost));
+  const total = [...values.values()].reduce((sum, value) => sum + value, 0);
+  let cumulative = 0;
+  return [...values.entries()]
+    .map(([name, value]) => ({ name, value }))
+    .sort((a, b) => b.value - a.value || a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" }))
+    .map((entry, index) => {
+      const share = total ? (entry.value / total) * 100 : 0;
+      const previous = cumulative;
+      cumulative += share;
+      const classification = previous < 80 ? "A" : previous < 95 ? "B" : "C";
+      return { ...entry, rank: index + 1, share, cumulative, classification };
+    });
+}
+
 function downloadCsv(rows: Item[]) {
   const headings = ["Código", "Produto", "Grupo", "Fornecedor", "Lote", "Validade", "Dias para vencer", "Estoque", "Custo unitário", "Valor em estoque"];
   const lines = rows.map((item) => [
@@ -89,6 +118,7 @@ function downloadCsv(rows: Item[]) {
 
 export default function Home() {
   const [tab, setTab] = useState<Tab>("suppliers");
+  const [paretoMode, setParetoMode] = useState<ParetoMode>("suppliers");
   const [supplierMode, setSupplierMode] = useState<SupplierMode>("expired");
   const [expandedSupplier, setExpandedSupplier] = useState<string | null>(null);
   const [range, setRange] = useState<RangeFilter>("period");
@@ -96,6 +126,7 @@ export default function Home() {
   const [supplier, setSupplier] = useState("all");
   const [group, setGroup] = useState("all");
   const [visible, setVisible] = useState(18);
+  const [paretoVisible, setParetoVisible] = useState(12);
   const [selected, setSelected] = useState<Item | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [installEvent, setInstallEvent] = useState<Event | null>(null);
@@ -177,6 +208,15 @@ export default function Home() {
       .sort((a, b) => a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" }));
   }, [supplierItems]);
 
+  const pareto = useMemo(() => ({
+    suppliers: paretoRows(items, "supplier"),
+    products: paretoRows(items, "product"),
+  }), []);
+  const currentPareto = pareto[paretoMode];
+  const totalInventory = useMemo(() => items.reduce((sum, item) => sum + item.totalCost, 0), []);
+  const history = useMemo(() => [...inventoryHistory].sort((a, b) => b.date.localeCompare(a.date)), []);
+  const latestMovement = history[0];
+
   const displayedItems = tab === "products" ? filtered : supplierItems;
   const totalFiltered = displayedItems.reduce((sum, item) => sum + item.totalCost, 0);
   const maxSupplierValue = Math.max(...supplierReport.map((entry) => entry.value), 1);
@@ -186,6 +226,11 @@ export default function Home() {
     setRange(value);
     setVisible(18);
     setTab("products");
+  }
+
+  function selectPareto(value: ParetoMode) {
+    setParetoMode(value);
+    setParetoVisible(12);
   }
 
   async function installApp() {
@@ -252,9 +297,10 @@ export default function Home() {
       <nav className="tabs" aria-label="Seções do aplicativo">
         <button className={tab === "suppliers" ? "active" : ""} onClick={() => setTab("suppliers")}>Fornecedores</button>
         <button className={tab === "products" ? "active" : ""} onClick={() => setTab("products")}>Produtos</button>
+        <button className={tab === "analytics" ? "active" : ""} onClick={() => setTab("analytics")}>Análises</button>
       </nav>
 
-      <section className="controls">
+      {tab !== "analytics" && <section className="controls">
         <label className="search-box">
           <span aria-hidden="true">⌕</span>
           <input value={search} onChange={(event) => { setSearch(event.target.value); setVisible(18); }} placeholder="Buscar produto, código ou lote" />
@@ -264,9 +310,9 @@ export default function Home() {
           Filtros {hasExtraFilters && <span>•</span>}
         </button>
         <button className="export-button" onClick={() => downloadCsv(displayedItems)}>Exportar CSV</button>
-      </section>
+      </section>}
 
-      {filtersOpen && (
+      {tab !== "analytics" && filtersOpen && (
         <section className="filter-panel">
           <label>Fornecedor
             <select value={supplier} onChange={(event) => { setSupplier(event.target.value); setVisible(18); }}>
@@ -312,13 +358,13 @@ export default function Home() {
         </section>
       )}
 
-      <section className="result-heading">
+      {tab !== "analytics" && <section className="result-heading">
         <div>
           <p>{tab === "products" ? "Lotes encontrados" : supplierMode === "expired" ? "Fornecedores com itens vencidos" : "Fornecedores com itens a vencer em até 120 dias"}</p>
           <strong>{tab === "products" ? `${filtered.length} registros` : `${supplierReport.length} fornecedores`}</strong>
         </div>
         <div className="result-value"><span>Total em estoque</span><strong>{money.format(totalFiltered)}</strong></div>
-      </section>
+      </section>}
 
       {tab === "products" ? (
         <section className="product-list compact-list" aria-live="polite">
@@ -341,7 +387,7 @@ export default function Home() {
           {filtered.length === 0 && <div className="empty-state"><strong>Nenhum lote encontrado</strong><p>Altere a busca ou os filtros para ver outros produtos.</p></div>}
           {visible < filtered.length && <button className="load-more" onClick={() => setVisible((value) => value + 18)}>Mostrar mais {Math.min(18, filtered.length - visible)} lotes</button>}
         </section>
-      ) : (
+      ) : tab === "suppliers" ? (
         <section className="supplier-list">
           {supplierReport.map((entry, index) => (
             <article className={`supplier-group ${expandedSupplier === entry.name ? "expanded" : ""}`} key={entry.name}>
@@ -389,6 +435,25 @@ export default function Home() {
             </article>
           ))}
           {supplierReport.length === 0 && <div className="empty-state"><strong>Nenhum fornecedor encontrado</strong><p>Altere a busca ou os filtros para ver outros resultados.</p></div>}
+        </section>
+      ) : (
+        <section className="analytics-page">
+          <div className="analytics-heading"><div><p className="eyebrow">Análise de estoque</p><h2>Pareto e evolução do estoque</h2><p>Priorize os itens e fornecedores que concentram o maior valor em estoque.</p></div></div>
+          <div className="analytics-summary">
+            <article><span>Estoque atual</span><strong>{money.format(totalInventory)}</strong><small>{items.length} lotes cadastrados</small></article>
+            <article><span>Última saída registrada</span><strong className="outflow">{money.format(latestMovement?.outflowValue ?? 0)}</strong><small>{latestMovement ? `Atualização de ${date.format(parseDate(latestMovement.date))}` : "Sem atualizações registradas"}</small></article>
+            <article><span>Saldo da última atualização</span><strong className={(latestMovement?.netChange ?? 0) >= 0 ? "positive" : "outflow"}>{money.format(latestMovement?.netChange ?? 0)}</strong><small>Entradas menos saídas no período</small></article>
+          </div>
+          <div className="analytics-section-head"><div><p className="eyebrow">Modelo de Pareto</p><h3>Participação por valor em estoque</h3></div><div className="segmented" role="group" aria-label="Tipo da análise Pareto"><button className={paretoMode === "suppliers" ? "active" : ""} onClick={() => selectPareto("suppliers")}>Fornecedores</button><button className={paretoMode === "products" ? "active" : ""} onClick={() => selectPareto("products")}>Produtos</button></div></div>
+          <div className="pareto-legend"><span className="pareto-a">A</span> até 80% acumulado <span className="pareto-b">B</span> até 95% <span className="pareto-c">C</span> demais itens</div>
+          <div className="pareto-table" role="table" aria-label={`Pareto por ${paretoMode === "suppliers" ? "fornecedores" : "produtos"}`}>
+            <div className="pareto-row pareto-header" role="row"><span>#</span><span>{paretoMode === "suppliers" ? "Fornecedor" : "Produto"}</span><span>Valor</span><span>%</span><span>Acumulado</span><span>Classe</span></div>
+            {currentPareto.slice(0, paretoVisible).map((entry) => <div className="pareto-row" role="row" key={entry.name}><span>{String(entry.rank).padStart(2, "0")}</span><strong title={entry.name}>{entry.name}</strong><span>{money.format(entry.value)}</span><span>{entry.share.toFixed(1)}%</span><span>{entry.cumulative.toFixed(1)}%</span><span className={`pareto-class pareto-${entry.classification.toLowerCase()}`}>{entry.classification}</span></div>)}
+            {paretoVisible < currentPareto.length && <button className="load-more" onClick={() => setParetoVisible((value) => value + 12)}>Mostrar mais {Math.min(12, currentPareto.length - paretoVisible)} {paretoMode === "suppliers" ? "fornecedores" : "produtos"}</button>}
+          </div>
+          <div className="analytics-section-head history-head"><div><p className="eyebrow">Histórico de atualizações</p><h3>Movimentação entre os períodos</h3></div></div>
+          <p className="history-note">Saídas somam reduções de valor e lotes que deixaram de constar na nova planilha. Entradas mostram inclusões e aumentos de valor.</p>
+          <div className="history-list">{history.map((entry, index) => <article className="history-row" key={`${entry.date}-${index}`}><div><span>Atualização</span><strong>{date.format(parseDate(entry.date))}</strong><small>{entry.lots} lotes</small></div><div><span>Estoque total</span><strong>{money.format(entry.totalValue)}</strong></div><div><span>Entradas</span><strong className="positive">{money.format(entry.inflowValue)}</strong></div><div><span>Saídas</span><strong className="outflow">{money.format(entry.outflowValue)}</strong></div><div><span>Saldo líquido</span><strong className={entry.netChange >= 0 ? "positive" : "outflow"}>{money.format(entry.netChange)}</strong></div></article>)}</div>
         </section>
       )}
 

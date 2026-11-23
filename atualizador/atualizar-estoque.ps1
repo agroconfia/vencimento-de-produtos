@@ -7,6 +7,7 @@ $OutputEncoding = [System.Text.Encoding]::UTF8
 $RepoRoot = Split-Path -Parent $PSScriptRoot
 $InventoryPath = Join-Path $RepoRoot 'app\data\inventory.json'
 $MetadataPath = Join-Path $RepoRoot 'app\data\inventory-meta.json'
+$HistoryPath = Join-Path $RepoRoot 'app\data\inventory-history.json'
 $ImporterPath = Join-Path $RepoRoot 'scripts\inventory-importer.mjs'
 $script:SelectedFile = $null
 $script:Preview = $null
@@ -172,6 +173,8 @@ $selectButton.Add_Click({
         'VALOR TOTAL EM ESTOQUE'
         ('  Antes : {0}' -f (Format-Currency $script:Preview.totals.current))
         ('  Depois: {0}' -f (Format-Currency $script:Preview.totals.next))
+        ('  Baixado: {0}' -f (Format-Currency $script:Preview.flow.outflowValue))
+        ('  Entradas: {0}' -f (Format-Currency $script:Preview.flow.inflowValue))
         ''
         ('DATA DA ATUALIZAÇÃO NO SITE: {0}' -f ([datetime]::ParseExact($script:Preview.lastUpdated.next, 'yyyy-MM-dd', $null).ToString('dd/MM/yyyy')))
     )
@@ -195,19 +198,21 @@ $publishButton.Add_Click({
 
     $backupPath = Join-Path ([System.IO.Path]::GetTempPath()) ("inventory-backup-{0}.json" -f [guid]::NewGuid())
     $metadataBackupPath = Join-Path ([System.IO.Path]::GetTempPath()) ("inventory-meta-backup-{0}.json" -f [guid]::NewGuid())
+    $historyBackupPath = Join-Path ([System.IO.Path]::GetTempPath()) ("inventory-history-backup-{0}.json" -f [guid]::NewGuid())
     $applyPath = Join-Path ([System.IO.Path]::GetTempPath()) ("agroconfianca-apply-{0}.json" -f [guid]::NewGuid())
     Copy-Item -LiteralPath $InventoryPath -Destination $backupPath -Force
     Copy-Item -LiteralPath $MetadataPath -Destination $metadataBackupPath -Force
+    Copy-Item -LiteralPath $HistoryPath -Destination $historyBackupPath -Force
     $committed = $false
     try {
         Set-Busy 'Aplicando os novos dados...' $true
-        $apply = Invoke-CommandLine $Node @($ImporterPath, 'apply', '--file', $script:SelectedFile, '--output', $applyPath, '--inventory', $InventoryPath, '--metadata', $MetadataPath, '--expected-sha256', $script:Preview.source.sha256)
+        $apply = Invoke-CommandLine $Node @($ImporterPath, 'apply', '--file', $script:SelectedFile, '--output', $applyPath, '--inventory', $InventoryPath, '--metadata', $MetadataPath, '--history', $HistoryPath, '--expected-sha256', $script:Preview.source.sha256)
         if ($apply.ExitCode -ne 0) { throw $apply.Output }
         Set-Busy 'Testando o site antes de publicar...' $true
         $build = Invoke-CommandLine $Npm @('run', 'build:pages')
         if ($build.ExitCode -ne 0) { throw "O teste do site falhou.`r`n$($build.Output)" }
         Set-Busy 'Registrando a atualização no GitHub...' $true
-        $add = Invoke-CommandLine $Git @('add', '--', 'app/data/inventory.json', 'app/data/inventory-meta.json')
+        $add = Invoke-CommandLine $Git @('add', '--', 'app/data/inventory.json', 'app/data/inventory-meta.json', 'app/data/inventory-history.json')
         if ($add.ExitCode -ne 0) { throw $add.Output }
         $commit = Invoke-CommandLine $Git @('commit', '-m', "Atualiza estoque pela planilha em $(Get-Date -Format 'yyyy-MM-dd')")
         if ($commit.ExitCode -ne 0) { throw $commit.Output }
@@ -225,7 +230,8 @@ $publishButton.Add_Click({
         if (-not $committed) {
             Copy-Item -LiteralPath $backupPath -Destination $InventoryPath -Force
             Copy-Item -LiteralPath $metadataBackupPath -Destination $MetadataPath -Force
-            Invoke-CommandLine $Git @('restore', '--staged', '--', 'app/data/inventory.json', 'app/data/inventory-meta.json') | Out-Null
+            Copy-Item -LiteralPath $historyBackupPath -Destination $HistoryPath -Force
+            Invoke-CommandLine $Git @('restore', '--staged', '--', 'app/data/inventory.json', 'app/data/inventory-meta.json', 'app/data/inventory-history.json') | Out-Null
             $status.Text = 'A atualização não foi publicada. O estoque anterior foi restaurado.'
         }
         else {
@@ -234,7 +240,7 @@ $publishButton.Add_Click({
         [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, 'Falha na atualização', 'OK', 'Error') | Out-Null
     }
     finally {
-        Remove-Item -LiteralPath $backupPath, $metadataBackupPath, $applyPath -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath $backupPath, $metadataBackupPath, $historyBackupPath, $applyPath -Force -ErrorAction SilentlyContinue
         $form.UseWaitCursor = $false
         $selectButton.Enabled = $true
     }
