@@ -1,3 +1,18 @@
 [
-  { "date": "2026-11-23", "totalValue": 882598.41, "lots": 75, "netChange": 0, "outflowValue": 0, "inflowValue": 0 }
+  {
+    "date": "2026-11-23",
+    "totalValue": 882598.41,
+    "lots": 75,
+    "netChange": 0,
+    "outflowValue": 0,
+    "inflowValue": 0
+  },
+  {
+    "date": "2026-11-27",
+    "totalValue": 882598.41,
+    "lots": 75,
+    "netChange": 0,
+    "outflowValue": 0,
+    "inflowValue": 0
+  }
 ]
